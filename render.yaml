@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: class-tracker-backend
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "5000"
+      - key: DISPLAY
+        value: ":99"
+      
+      # Playwright Configuration
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: "/ms-playwright"
+      
+      # Database Configuration
+      - key: CONNECTION_STRING
+        value: mongodb+srv://admin:admin@jorgecluster.do6prwp.mongodb.net/mycontacts-backend?retryWrites=true&w=majority&appName=jorgecluster
+      
+      # Authentication
+      - key: ACCESS_TOKEN_SECRET
+        value: jorge123
+      
+      # Email Configuration for Notifications
+      - key: EMAIL_USER
+        value: jorgegarcia200360@gmail.com
+      - key: EMAIL_PASS
+        value: "fddv dtnp bcap oogd"
+      - key: EMAIL_FROM
+        value: noreply@classnotifier.com
+      - key: SMTP_HOST 
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"

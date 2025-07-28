@@ -195,14 +195,21 @@ async def getClassInfo(classNumber: str) -> Dict:
         import traceback
         traceback.print_exc(file=sys.stderr)
         return None
+    # Replace your finally block with this:
+
     finally:
         # Clean up browser context
         if browser_context:
             try:
-                await browser_context.close()
-                print(f"[{time.time()}] [CLEANUP] Playwright browser context closed successfully", file=sys.stderr)
+                # Check if the context is still open before trying to close it
+                if not browser_context.is_closed():
+                    await browser_context.close()
+                    print(f"[{time.time()}] [CLEANUP] Playwright browser context closed successfully", file=sys.stderr)
+                else:
+                    print(f"[{time.time()}] [CLEANUP] Browser context was already closed", file=sys.stderr)
             except Exception as close_error:
-                print(f"[{time.time()}] [CLEANUP_ERROR] Error closing browser context: {close_error}", file=sys.stderr)
+                print(f"[{time.time()}] [CLEANUP_WARNING] Error closing browser context: {close_error}", file=sys.stderr)
+                # Continue with cleanup anyway
         
         # Clean up temporary user data directory
         if user_data_dir and os.path.exists(user_data_dir):
@@ -210,7 +217,7 @@ async def getClassInfo(classNumber: str) -> Dict:
                 shutil.rmtree(user_data_dir)
                 print(f"[{time.time()}] [CLEANUP] Temp directory cleaned: {user_data_dir}", file=sys.stderr)
             except Exception as cleanup_error:
-                print(f"[{time.time()}] [CLEANUP_ERROR] Error cleaning temp dir: {cleanup_error}", file=sys.stderr)
+                print(f"[{time.time()}] [CLEANUP_WARNING] Error cleaning temp dir: {cleanup_error}", file=sys.stderr)
         
         print(f"[{time.time()}] [MEMORY_TRACK] After cleanup: {get_memory_usage()}", file=sys.stderr)
 

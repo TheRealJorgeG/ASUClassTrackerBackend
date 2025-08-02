@@ -1,20 +1,17 @@
+# render-api.yaml - Configuration for API service only
 services:
   - type: web
-    name: class-tracker-backend
+    name: class-tracker-api
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
+    buildCommand: "npm install --omit=dev"
+    startCommand: "npm run start:api"
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: "5000"
-      - key: DISPLAY
-        value: ":99"
-      
-      # Playwright Configuration
-      - key: PLAYWRIGHT_BROWSERS_PATH
-        value: "/ms-playwright"
       
       # Database Configuration
       - key: CONNECTION_STRING
@@ -24,14 +21,14 @@ services:
       - key: ACCESS_TOKEN_SECRET
         value: jorge123
       
-      # Email Configuration for Notifications
-      - key: EMAIL_USER
-        value: jorgegarcia200360@gmail.com
-      - key: EMAIL_PASS
-        value: "fddv dtnp bcap oogd"
-      - key: EMAIL_FROM
-        value: noreply@classnotifier.com
-      - key: SMTP_HOST 
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "587"
+      # Python/Playwright for class lookup (still needed for API)
+      - key: DISPLAY
+        value: ":99"
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: "/ms-playwright"
+    
+    # Health check configuration
+    healthCheckPath: /health
+    
+    # Auto-deploy from main branch
+    autoDeploy: true

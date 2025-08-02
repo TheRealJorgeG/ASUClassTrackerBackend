@@ -390,7 +390,7 @@ class NotificationService {
     try {
       // Use absolute path for Python script - UPDATED FOR PLAYWRIGHT
       const scriptPath = path.join(__dirname, '..', 'scripts', 'get_class_info.py');
-      const command = `python3 "${scriptPath}" "${classNumber}"`;
+      const command = `python "${scriptPath}" "${classNumber}"`;
 
       // Create unique process environment to prevent browser conflicts
       const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

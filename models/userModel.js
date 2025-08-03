@@ -14,6 +14,14 @@ const userSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Class",
     }],
+    resetPasswordToken: {
+        type: String,
+        default: undefined
+    },
+    resetPasswordExpires: {
+        type: Date,
+        default: undefined
+    }
 }, {
     timestamps: true,
 });

@@ -62,23 +62,6 @@ class NotificationService {
     this.initializeEmailTransporter();
   }
 
-  // Memory monitoring utility
-  getMemoryUsage() {
-    const memUsage = process.memoryUsage();
-    return {
-      rss: Math.round(memUsage.rss / 1024 / 1024 * 100) / 100, // MB
-      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024 * 100) / 100, // MB
-      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024 * 100) / 100, // MB
-      external: Math.round(memUsage.external / 1024 / 1024 * 100) / 100 // MB
-    };
-  }
-
-  printMemoryUsage(stage) {
-    const memory = this.getMemoryUsage();
-    console.log(`[MEMORY] ${stage}: RSS=${memory.rss}MB, Heap=${memory.heapUsed}/${memory.heapTotal}MB, External=${memory.external}MB`);
-    return memory;
-  }
-
   printClassInformation(classData, classNumber) {
     console.log(`\n${'='.repeat(80)}`);
     console.log(`CLASS STATUS CHECK - ${new Date().toISOString()}`);

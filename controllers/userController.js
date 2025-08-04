@@ -1,27 +1,9 @@
 const asyncHandler = require('express-async-handler');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto'); // ADD THIS IMPORT
-const nodemailer = require('nodemailer'); // ADD THIS IMPORT
+const crypto = require('crypto'); 
 const User = require('../models/userModel');
-
-// ADD EMAIL TRANSPORTER SETUP
-const createEmailTransporter = () => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('Email credentials not configured - forgot password will not work');
-    return null;
-  }
-  
-  return nodemailer.createTransporter({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
-};
+const sendEmail = require('../utils/sendEmail');
 
 //@desc Register a user
 //@route POST /api/users/register
@@ -97,133 +79,112 @@ const currentUser = asyncHandler(async (req, res) => {
   res.json(req.user);
 });
 
-// ADD THIS NEW FUNCTION FOR FORGOT PASSWORD
-//@desc Send password reset email
-//@route POST /api/users/forgot-password
-//@access public
-const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
 
+
+
+
+
+
+
+
+
+//Add forgot and reset passwords HERE
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body
+  
   if (!email) {
     res.status(400);
-    throw new Error('Email is required');
+    throw new Error('Email is mandatory');
   }
 
-  // Check if user exists
   const user = await User.findOne({ email });
   if (!user) {
-    // Don't reveal if user exists or not for security
-    res.status(200).json({ 
-      message: 'If an account with that email exists, password reset instructions have been sent.' 
-    });
-    return;
+    res.status(404);
+    throw new Error('No user found with that email address');
   }
 
-  // Generate reset token
   const resetToken = crypto.randomBytes(32).toString('hex');
-  const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-  
-  // Save reset token to user (expires in 1 hour)
-  user.resetPasswordToken = resetTokenHash;
-  user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
-  await user.save();
+  console.log('🔑 ORIGINAL TOKEN (use this for testing):', resetToken);
 
-  // Create email transporter
-  const transporter = createEmailTransporter();
-  if (!transporter) {
-    res.status(500);
-    throw new Error('Email service not configured');
-  }
+  const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
-  // Create reset URL - UPDATE THIS WITH YOUR FRONTEND URL
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+  user.resetPasswordToken = hashedToken;
+  user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
 
-  // Email content
-  const mailOptions = {
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-    to: user.email,
-    subject: 'Password Reset Request - Class Tracker',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #A23A56;">Password Reset Request</h2>
-        
-        <p>Hi there,</p>
-        
-        <p>You requested a password reset for your Class Tracker account. Click the button below to reset your password:</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetUrl}" 
-             style="background: linear-gradient(to right, #A23A56, #B8456E); 
-                    color: white; 
-                    padding: 12px 30px; 
-                    text-decoration: none; 
-                    border-radius: 8px; 
-                    font-weight: bold;
-                    display: inline-block;">
-            Reset My Password
-          </a>
-        </div>
-        
-        <p>Or copy and paste this link into your browser:</p>
-        <p style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; word-break: break-all;">
-          ${resetUrl}
-        </p>
-        
-        <p style="color: #666; font-size: 14px;">
-          This link will expire in 1 hour for security reasons.
-        </p>
-        
-        <p style="color: #666; font-size: 14px;">
-          If you didn't request this password reset, please ignore this email.
-        </p>
-        
-        <hr style="border: 1px solid #eee; margin: 30px 0;">
-        <p style="color: #999; font-size: 12px;">
-          Class Tracker - ASU Class Monitoring System
-        </p>
-      </div>
-    `
-  };
+  await user.save({ validateBeforeSave: false });
+
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+  const message = `
+    <h2>Password Reset Request</h2>
+    <p>You have requested a password reset. Please click the link below to reset your password:</p>
+    <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
+    <p>This link will expire in 10 minutes.</p>
+    <p>If you didn't request this, please ignore this email.</p>
+  `;
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Password reset email sent to ${email}`);
-    
-    res.status(200).json({ 
-      message: 'Password reset instructions have been sent to your email address.' 
+    await sendEmail({
+      email: user.email,
+      subject: 'Password Reset Request',
+      message
     });
-  } catch (error) {
-    // Clear the reset token if email fails
+
+    console.log(`Password reset email sent to: ${user.email}`);
+    res.status(200).json({
+      message: 'Password reset email sent successfully',
+      email: user.email
+    });
+  } catch (emailError) {
+    console.log('Email sending failed:', emailError);
+    
+    // Clear reset token if email fails
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
-    await user.save();
-    
-    console.error('Error sending password reset email:', error);
+    await user.save({ validateBeforeSave: false });
+
     res.status(500);
-    throw new Error('Error sending password reset email');
+    throw new Error('Email could not be sent. Please try again later.');
   }
 });
 
-// ADD THIS NEW FUNCTION FOR RESET PASSWORD
-//@desc Reset password with token
-//@route POST /api/users/reset-password
-//@access public
-const resetPassword = asyncHandler(async (req, res) => {
-  const { token, password } = req.body;
 
-  if (!token || !password) {
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { password, confirmPassword } = req.body;
+
+  console.log('1. Token received:', token);
+
+  if (!password || !confirmPassword) {
     res.status(400);
-    throw new Error('Token and new password are required');
+    throw new Error('Password and confirm password are mandatory');
   }
 
-  // Hash the token to compare with stored hash
-  const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  if (password !== confirmPassword) {
+    res.status(400);
+    throw new Error('Passwords do not match');
+  }
 
-  // Find user with valid reset token
+  if (password.length < 6) {
+    res.status(400);
+    throw new Error('Password must be at least 6 characters long');
+  }
+
+  // Hash the token to compare with stored hashed token
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  console.log('2. Hash of received token:', hashedToken);
+
+  // Find user with valid reset token and check expiration
   const user = await User.findOne({
-    resetPasswordToken: resetTokenHash,
+    resetPasswordToken: hashedToken,
     resetPasswordExpires: { $gt: Date.now() }
   });
+
+  if (user) {
+    console.log('3. Stored hash in DB:', user.resetPasswordToken);
+  } else {
+    console.log('3. No user found with that hash');
+  }
 
   if (!user) {
     res.status(400);
@@ -232,25 +193,32 @@ const resetPassword = asyncHandler(async (req, res) => {
 
   // Hash new password
   const hashedPassword = await bcrypt.hash(password, 10);
+  console.log('New hashed password created');
 
-  // Update user password and clear reset token
+  // Set new password and clear reset token fields
   user.password = hashedPassword;
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
+  
   await user.save();
 
   console.log(`Password reset successful for user: ${user.email}`);
-  
   res.status(200).json({ 
-    message: 'Password reset successful. You can now log in with your new password.' 
+    message: 'Password reset successful',
+    email: user.email 
   });
 });
 
-// UPDATE THE EXPORTS TO INCLUDE NEW FUNCTIONS
+
+
+
+
+
+
 module.exports = { 
   registerUser, 
   loginUser, 
   currentUser, 
-  forgotPassword, 
-  resetPassword 
+  forgotPassword,
+  resetPassword
 };

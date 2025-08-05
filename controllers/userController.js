@@ -45,6 +45,7 @@ const registerUser = asyncHandler(async (req, res) => {
 //@access public
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  console.log("Someone called LOGIN USER")
 
   if (!email || !password) {
     res.status(400);
@@ -55,6 +56,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
   // Compare password with hashed password
   if (user && (await bcrypt.compare(password, user.password))) {
+    console.log("hello")
     const accessToken = jwt.sign(
       {
         user: {
@@ -80,15 +82,6 @@ const currentUser = asyncHandler(async (req, res) => {
 });
 
 
-
-
-
-
-
-
-
-
-//Add forgot and reset passwords HERE
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body
   
